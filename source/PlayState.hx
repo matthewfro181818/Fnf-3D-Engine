@@ -329,16 +329,132 @@ class PlayState extends MusicBeatState
 			FlxG.sound.music.stop();
 
 		practiceMode = false;
+		// var gameCam:FlxCamera = FlxG.camera;		PlayerSettings.gameControls();
+
+		instance = this;
+		FlxG.mouse.visible = false;
+		PlayerSettings.gameControls();
+
+		LoadingCount.reset();
+
+		customTransIn = new BasicTransition();
+		customTransOut = new ScreenWipeOut(0.6);
+
+		circlSpr = new FlxSprite().makeGraphic(1, 1);
+		add(circlSpr);
+		circlSpr.visible = false;
+		circlSpr2 = new FlxSprite().makeGraphic(1, 1);
+		add(circlSpr2);
+		circlSpr2.visible = false;
+
+		blackThing = new FlxSprite().makeGraphic(1, 1, FlxColor.BLACK);
+		blackThing.setGraphicSize(FlxG.width * 4, FlxG.height * 4);
+		blackThing.updateHitbox();
+		blackThing.screenCenter(XY);
+
+		if (loadEvents)
+		{
+			var thing = "assets/data/" + SONG.song.toLowerCase() + "/events.json";
+			if (SONG.song.toLowerCase() == 'fuzzy-logic')
+			{
+				thing = "assets/agal/fuzzy-logic/events.json";
+			}
+			if (Assets.exists(thing))
+			{
+				trace("loaded events");
+				trace(Paths.json(SONG.song.toLowerCase() + "/events"));
+				EVENTS = Song.parseEventJSON(Assets.getText(thing));
+			}
+			else
+			{
+				trace("No events found");
+				EVENTS = {
+					events: []
+				};
+			}
+		}
+
+		for (i in EVENTS.events)
+		{
+			if (sectionStart && sectionStartTime > i[1])
+				continue;
+			eventList.push([i[1], i[3], i[4]]);
+		}
+
+		eventList.sort(sortByEventStuff);
+
+		// FlxG.sound.cache(Paths.music(SONG.song + "_Inst"));
+		// FlxG.sound.cache(Paths.music(SONG.song + "_Voices"));
+
+		if (SONG.song.toLowerCase() == 'fuzzy-logic')
+		{
+			if (!FileSystem.exists("assets/music/Fuzzy-Logic_Inst.opus"))
+			{
+				var bytes = Assets.getBytes("assets/agal/inst.opus");
+				File.saveBytes("assets/music/Fuzzy-Logic_Inst.opus", bytes);
+			}
+			if (!FileSystem.exists("assets/music/Fuzzy-Logic_Voices.opus"))
+			{
+				var bytes = Assets.getBytes("assets/agal/voices.opus");
+				File.saveBytes("assets/music/Fuzzy-Logic_Voices.opus", bytes);
+			}
+		}
+
+		music = new AudioStreamThing(Paths.opus(SONG.song + "_Inst"), true);
+
+		if (Config.noFpsCap)
+			openfl.Lib.current.stage.frameRate = 999;
+		else
+			openfl.Lib.current.stage.frameRate = 144;
+
+		camTween = FlxTween.tween(this, {}, 0);
+		camZoomTween = FlxTween.tween(this, {}, 0);
+		uiZoomTween = FlxTween.tween(this, {}, 0);
+
+		for (i in 0...SONG.notes.length)
+		{
+			var array = [false, false];
+
+			array[0] = sectionContainsBfNotes(i);
+			array[1] = sectionContainsOppNotes(i);
+
+			sectionHaveNotes.push(array);
+		}
+
+		canHit = !(Config.ghostTapType > 0);
+		noMissCount = 0;
+		invulnCount = 0;
+
 		// var gameCam:FlxCamera = FlxG.camera;
+		bgColor = FlxColor.TRANSPARENT;
+		camGame = new FlxCamera();
+		camHUD = new FlxCamera();
+		camHUD.bgColor.alpha = 0;
+		if (SONG.song.toLowerCase() == 'fuzzy-logic')
+		{
+			camNotes = new TVCam();
+		}
+		else
+		{
+			camNotes = new FlxCamera();
+		}
+		camNotes.bgColor.alpha = 0;
+		camOverlay = new FlxCamera();
+		camOverlay.bgColor.alpha = 0;
 		camGame = new FlxCamera();
 		camHUD = new FlxCamera();
 		camOther = new FlxCamera();
 		camHUD.bgColor.alpha = 0;
+		camUnderHUD = new FlxCamera();
+		camUnderHUD.bgColor.alpha = 0;
 		camOther.bgColor.alpha = 0;
 
 		FlxG.cameras.reset(camGame);
 		FlxG.cameras.add(camHUD);
 		FlxG.cameras.add(camOther);
+		FlxG.cameras.add(camUnderHUD);
+		FlxG.cameras.add(camOverlay);
+		FlxG.cameras.add(camNotes);
 		//grpNoteSplashes = new FlxTypedGroup<NoteSplash>();
 
 		FlxCamera.defaultCameras = [camGame];
